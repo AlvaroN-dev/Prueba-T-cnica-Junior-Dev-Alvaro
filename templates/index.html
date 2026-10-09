@@ -7,6 +7,7 @@
 </head>
 <body>
 <main><header><div><small>PYMEDESK</small><h1>Gestión de pedidos</h1><p>Consulta y actualiza el estado de los pedidos.</p></div><span id="count"></span></header>
+<div id="message" role="alert" hidden></div>
 <section><div class="scroll"><table><thead><tr><th>ID</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="orders"><tr><td colspan="5">Cargando pedidos…</td></tr></tbody></table></div></section></main>
 <script>
 const body = document.querySelector("#orders");
@@ -31,7 +32,7 @@ async function loadOrders() {
       const action = document.createElement("td");
       const button = document.createElement("button");
       button.textContent = "Marcar como enviado";
-      button.disabled = order.status === "enviado";
+      button.disabled = order.status !== "pendiente";
       button.onclick = () => ship(order.id, button);
       action.append(button); row.append(action); body.append(row);
     }
@@ -39,14 +40,31 @@ async function loadOrders() {
     body.innerHTML = '<tr><td colspan="5">No se pudieron cargar los pedidos. Recarga la página.</td></tr>';
   }
 }
+const message = document.querySelector("#message");
+function showError(text) { message.textContent = text; message.hidden = false; }
 async function ship(id, button) {
+  message.hidden = true;
   button.disabled = true;
+  let shipped = false;
   try {
     const response = await fetch(`/api/orders/${id}/ship`, {method:"POST"});
-    if (!response.ok) throw new Error();
+    if (!response.ok) {
+      let text = "No se pudo actualizar el pedido. Inténtalo de nuevo.";
+      try {
+        const data = await response.json();
+        if (typeof data.error === "string") text = data.error;
+      } catch {}
+      showError(text);
+      // Si el servidor respondió 404/409, la tabla está desactualizada: se resincroniza.
+      if (response.status === 404 || response.status === 409) await loadOrders();
+      return;
+    }
+    shipped = true;
     await loadOrders();
   } catch {
-    button.disabled = false;
+    showError("No se pudo actualizar el pedido. Inténtalo de nuevo.");
+  } finally {
+    if (!shipped) button.disabled = false;
   }
 }
 loadOrders();
