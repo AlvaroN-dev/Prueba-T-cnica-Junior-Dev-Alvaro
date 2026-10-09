@@ -31,7 +31,16 @@ def ship(order_id):
                 return jsonify(error="Pedido no encontrado."), 404
             if row["status"] == "enviado":
                 return jsonify(error="El pedido ya está enviado."), 409
-            con.execute("UPDATE orders SET status = 'enviado' WHERE id = ?", (order_id,))
+            if row["status"] != "pendiente":
+                return jsonify(error="Un pedido cancelado no se puede enviar."), 409
+            # La condición en el WHERE hace la transición atómica: si el estado cambió
+            # entre el SELECT y el UPDATE, no se modifica ninguna fila.
+            result = con.execute(
+                "UPDATE orders SET status = 'enviado' WHERE id = ? AND status = 'pendiente'",
+                (order_id,),
+            )
+            if result.rowcount == 0:
+                return jsonify(error="El estado del pedido cambió. Recarga e inténtalo de nuevo."), 409
             updated = con.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
         return jsonify(dict(updated))
     except sqlite3.Error:
