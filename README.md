@@ -37,3 +37,16 @@ Mantén la solución pequeña. No se requiere despliegue, documentación extensa
 ## Entrega
 
 Comparte el enlace a tu repositorio con los cambios y un video de **2–4 minutos** donde muestres la aplicación, expliques el problema encontrado, tu solución y cómo comprobaste el resultado. Puedes usar asistentes de IA durante todo el ejercicio.
+
+## Observaciones pendientes
+
+Problemas detectados fuera del alcance de la tarea, no corregidos:
+
+1. **`app.run(debug=True)` en `app.py`** (bloque `__main__`).
+   - Evidencia: el modo debug está fijo en el código.
+   - Impacto: el depurador de Werkzeug permite ejecutar código desde el navegador si el servidor se expone fuera de local.
+   - Propuesta: quitar `debug=True` o activarlo solo mediante una variable de entorno (p. ej. `FLASK_DEBUG=1`) en desarrollo.
+
+2. **`with connect() as con` no cierra la conexión** (`app.py`, endpoints `orders` y `ship`).
+   - Evidencia: según la documentación de `sqlite3`, el context manager solo hace commit/rollback; no llama a `close()`. No se ha reproducido ningún fallo, por lo que el impacto real (p. ej. bloqueo del archivo en Windows) está sin confirmar.
+   - Propuesta: envolver la conexión con `contextlib.closing(connect())` o cerrarla explícitamente en un `finally`.
